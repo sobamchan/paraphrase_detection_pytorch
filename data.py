@@ -66,7 +66,7 @@ def get(ddir: str, savedir: str, bsize: int, ft_path: str):
     ft_model = fastText.load_model(ft_path)
     swem = SWEM(ft_model)
 
-    split = 'jrain'
+    split = 'train'
     quality = lf.TextDataset(str(ddir / ('quality.%s.txt' % split))).map(int)
     sent1 = lf.TextDataset(str(ddir / ('sent1.%s.txt' % split))).map(sent_preprocess(swem))
     sent2 = lf.TextDataset(str(ddir / ('sent2.%s.txt' % split))).map(sent_preprocess(swem))
@@ -81,7 +81,7 @@ def get(ddir: str, savedir: str, bsize: int, ft_path: str):
             collate_fn=get_collate_fn()
             )
 
-    return ds
+    return train_dataloader
 
 
 if __name__ == '__main__':
