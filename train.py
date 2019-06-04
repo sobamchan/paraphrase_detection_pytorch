@@ -11,7 +11,11 @@ from data import get
 from models import MLP
 
 
-def train(ddir: str, savedir: str, bsize: int, ft_path: str, use_cuda: bool, epoch: int, lr: float):
+def train(ddir: str, savedir: str, bsize: int, ft_path: str, use_cuda: bool, epoch: int, lr: float, seed: int = 1111):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    np.random.seed(seed)
+
     print('Loading dataset...')
     dataloader = get(ddir, savedir, bsize, ft_path)
 
