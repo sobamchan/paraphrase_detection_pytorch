@@ -20,7 +20,7 @@ class SWEM():
     def get_word_embeddings(self, tokens):
         vectors = []
         for token in tokens:
-            vectors.append(self.ft_model.get_word_vector[token])
+            vectors.append(self.ft_model.get_word_vector(token))
             # if word in self.vocab:
             #     vectors.append(self.w2v[word])
             # else:
