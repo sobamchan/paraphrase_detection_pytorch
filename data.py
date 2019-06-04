@@ -59,29 +59,28 @@ def get_collate_fn():
     return _f
 
 
-def get(ddir: str, savedir: str, bsize: int, ft_path: str):
+def get(ddir: str, savedir: str, bsize: int, ft_path: str, split: str = 'train', shuffle: bool = True):
     ddir = Path(ddir)
     savedir = Path(savedir)
 
     ft_model = fastText.load_model(ft_path)
     swem = SWEM(ft_model)
 
-    split = 'train'
-    quality = lf.TextDataset(str(ddir / ('quality.%s.txt' % split))).map(int)
-    sent1 = lf.TextDataset(str(ddir / ('sent1.%s.txt' % split))).map(sent_preprocess(swem))
-    sent2 = lf.TextDataset(str(ddir / ('sent2.%s.txt' % split))).map(sent_preprocess(swem))
+    quality = lf.TextDataset(str(ddir / (f'quality.{split}.txt'))).map(int)
+    sent1 = lf.TextDataset(str(ddir / (f'sent1.{split}.txt'))).map(sent_preprocess(swem))
+    sent2 = lf.TextDataset(str(ddir / (f'sent2.{split}.txt'))).map(sent_preprocess(swem))
 
     ds = lf.zip(quality, sent1, sent2)
 
-    train_dataloader = DataLoader(
-            ds.save(savedir / 'swem.train.cache'),
+    dataloader = DataLoader(
+            ds.save(savedir / f'swem.{split}.cache'),
             batch_size=bsize,
-            shuffle=True,
+            shuffle=shuffle,
             num_workers=4,
             collate_fn=get_collate_fn()
             )
 
-    return train_dataloader
+    return dataloader
 
 
 if __name__ == '__main__':
