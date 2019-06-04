@@ -9,6 +9,7 @@ import spacy
 import lineflow as lf
 import fastText
 
+import torch
 from torch.utils.data import DataLoader
 
 from swem import SWEM
@@ -45,23 +46,39 @@ def build_vocab(tokens: List, cache: str, max_size: int = 5000) -> (Dict, List):
     return token_to_index, words
 
 
-def get(ddir: str, split: str, savedir: str, bsize: int, ft_path: str):
+def get_collate_fn():
+
+    def _f(batch):
+        tgts, sent1s, sent2s = zip(*batch)
+        return (
+                torch.LongTensor(tgts),
+                torch.FloatTensor(sent1s),
+                torch.FloatTensor(sent2s)
+                )
+
+    return _f
+
+
+def get(ddir: str, savedir: str, bsize: int, ft_path: str):
     ddir = Path(ddir)
     savedir = Path(savedir)
 
     ft_model = fastText.load_model(ft_path)
     swem = SWEM(ft_model)
 
+    split = 'jrain'
     quality = lf.TextDataset(str(ddir / ('quality.%s.txt' % split))).map(int)
     sent1 = lf.TextDataset(str(ddir / ('sent1.%s.txt' % split))).map(sent_preprocess(swem))
     sent2 = lf.TextDataset(str(ddir / ('sent2.%s.txt' % split))).map(sent_preprocess(swem))
 
     ds = lf.zip(quality, sent1, sent2)
+
     train_dataloader = DataLoader(
             ds.save(savedir / 'swem.train.cache'),
             batch_size=bsize,
             shuffle=True,
-            num_workers=4
+            num_workers=4,
+            collate_fn=get_collate_fn()
             )
 
     return ds
