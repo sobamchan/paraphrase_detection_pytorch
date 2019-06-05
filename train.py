@@ -36,6 +36,8 @@ def train(ddir: str, data_cache_dir: str, savedir: str, bsize: int,
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criteria = nn.CrossEntropyLoss()
 
+    best_acc = 0
+
     print('Start training...')
     for i_epoch in range(1, epoch+1):
         losses = []
@@ -73,10 +75,21 @@ def train(ddir: str, data_cache_dir: str, savedir: str, bsize: int,
         print(f'Train loss: {np.mean(losses)}')
         logf.write(f'Train loss: {np.mean(losses)}\n')
 
-        print(f'Valid loss: {np.mean(valid_losses)}')
-        logf.write(f'Valid loss: {np.mean(valid_losses)}\n')
-        print(f'Valid accuracy: {np.mean(valid_accs)}')
-        logf.write(f'Valid accuracy: {np.mean(valid_accs)}\n')
+        _loss = np.mean(valid_losses)
+        _acc = np.mean(valid_accs)
+        print(f'Valid loss: {_loss}')
+        logf.write(f'Valid loss: {_loss}\n')
+        print(f'Valid accuracy: {_acc}')
+        logf.write(f'Valid accuracy: {_acc}\n')
+
+        if _acc > best_acc:
+            best_acc = _acc
+            print('Best acc')
+            print('Dumping the model...')
+            torch.save(model, savedir / 'best.pth')
+
+        print()
+        logf.write('\n')
 
     print('Dumping the model...')
     torch.save(model, savedir / 'model.pth')
