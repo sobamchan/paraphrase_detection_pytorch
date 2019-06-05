@@ -85,13 +85,13 @@ def train(ddir: str, data_cache_dir: str, savedir: str, bsize: int,
         if _acc > best_acc:
             best_acc = _acc
             print('Best acc')
-            print('Dumping the model...')
+            print(f'Dumping the model to {savedir}...')
             torch.save(model, savedir / 'best.pth')
 
         print()
         logf.write('\n')
 
-    print('Dumping the model...')
+    print(f'Dumping the model to {savedir}...')
     torch.save(model, savedir / 'model.pth')
 
 
