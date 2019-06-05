@@ -5,13 +5,15 @@ import torch
 from data import get
 
 
-def eval(ddir: str, model_path: str,
-         use_cuda: bool = True, ft_path: str = '/home/takeshita/mnt/DATA/NLP/fasttext_pretrained/wiki.en.bin',
-         split='test'):
+def eval(ddir: str, data_cache_dir: str, model_path: str, ft_path: str,
+         use_cuda: bool = True, split='test'):
+
     device = torch.device('cuda' if use_cuda else 'cpu')
+
+    print('Loading model...')
     model = torch.load(model_path).to(device)
 
-    dataloader = get(ddir, './test', bsize=128, ft_path=ft_path, split=split, shuffle=False)
+    dataloader = get(ddir, data_cache_dir, bsize=128, ft_path=ft_path, split=split, shuffle=False)
 
     pred_idxs = []
     tgts = []
