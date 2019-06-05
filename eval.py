@@ -2,18 +2,18 @@ import fire
 
 import torch
 
-from data import get
+from data import test_get
 
 
 def eval(ddir: str, data_cache_dir: str, model_path: str, ft_path: str,
-         use_cuda: bool = True, split='test'):
+         use_cuda: bool = True):
 
     device = torch.device('cuda' if use_cuda else 'cpu')
 
     print('Loading model...')
     model = torch.load(model_path).to(device)
 
-    dataloader = get(ddir, data_cache_dir, bsize=128, ft_path=ft_path, split=split, shuffle=False)
+    dataloader = test_get(ddir, data_cache_dir, bsize=128, ft_path=ft_path)
 
     pred_idxs = []
     tgts = []

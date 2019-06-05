@@ -27,7 +27,8 @@ def train(ddir: str, data_cache_dir: str, savedir: str, bsize: int,
     logf.write(' '.join(sys.argv) + '\n')
 
     print('Loading dataset...')
-    dataloader = get(ddir, data_cache_dir, bsize, ft_path)
+    train_dataloader = get(ddir, data_cache_dir, bsize, ft_path, split='train')
+    valid_dataloader = get(ddir, data_cache_dir, bsize, ft_path, split='valid')
 
     print('Setting up models...')
     device = torch.device('cuda' if use_cuda else 'cpu')
@@ -38,7 +39,8 @@ def train(ddir: str, data_cache_dir: str, savedir: str, bsize: int,
     print('Start training...')
     for i_epoch in range(1, epoch+1):
         losses = []
-        for tgts, sent1s, sent2s in dataloader:
+        model.train()
+        for tgts, sent1s, sent2s in train_dataloader:
             tgts = tgts.to(device)
             sent1s = sent1s.to(device)
             sent2s = sent2s.to(device)
@@ -51,8 +53,30 @@ def train(ddir: str, data_cache_dir: str, savedir: str, bsize: int,
             optimizer.step()
             losses.append(loss.item())
 
+        model.eval()
+        valid_losses = []
+        valid_accs = []
+        with torch.no_grad():
+            for tgts, sent1s, sent2s in valid_dataloader:
+                tgts = tgts.to(device)
+                sent1s = sent1s.to(device)
+                sent2s = sent2s.to(device)
+
+                preds = model(sent1s, sent2s)
+                pred_idxs = preds.argmax(dim=1).tolist()
+
+                loss = criteria(preds, tgts)
+                acc = len([1 for p, t in zip(pred_idxs, tgts.tolist()) if p == t]) / len(tgts.tolist())
+                valid_losses.append(loss.item())
+                valid_accs.append(acc)
+
         print(f'Train loss: {np.mean(losses)}')
         logf.write(f'Train loss: {np.mean(losses)}\n')
+
+        print(f'Valid loss: {np.mean(valid_losses)}')
+        logf.write(f'Valid loss: {np.mean(valid_losses)}\n')
+        print(f'Valid accuracy: {np.mean(valid_accs)}')
+        logf.write(f'Valid accuracy: {np.mean(valid_accs)}\n')
 
     print('Dumping the model...')
     torch.save(model, savedir / 'model.pth')
