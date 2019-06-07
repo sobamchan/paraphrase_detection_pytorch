@@ -45,6 +45,8 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
         criteria = nn.CrossEntropyLoss()
 
         best_acc = 0
+        n_fail_in_a_raw = 0
+        limit_n_fail_in_a_raw = 5
 
         # print('Start training...')
         for i_epoch in range(1, epoch+1):
@@ -92,9 +94,15 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
 
             if _acc > best_acc:
                 best_acc = _acc
+                n_fail_in_a_raw = 0
                 # print('Best acc')
                 # print(f'Dumping the model to {savedir}...')
                 # torch.save(model, savedir / 'best.pth')
+            else:
+                n_fail_in_a_raw += 1
+
+            if n_fail_in_a_raw >= limit_n_fail_in_a_raw:
+                break
 
             # print()
             # logf.write('\n')
