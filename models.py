@@ -4,11 +4,28 @@ import torch.nn as nn
 
 class MLP(nn.Module):
 
-    def __init__(self):
+    def __init__(self, trial):
         super().__init__()
-        self.linear1 = nn.Linear(300 * 2, 200)
-        self.linear2 = nn.Linear(200, 300)
-        self.linear3 = nn.Linear(300, 2)
+        self.layers = []
+        self.dropouts = []
+        nlayers = trial.suggest_int('nlayers', 1, 5)
+        dropout = trial.suggest_uniform('dropout', 0.2, 0.5)
+        input_dim = 300 * 2
+
+        for i in range(nlayers):
+            output_dim = int(trial.suggest_loguniform(f'n_units_l{i}', 100, 300))
+            self.layers.append(nn.Linear(input_dim, output_dim))
+            self.dropouts.append(nn.Dropout(dropout))
+            input_dim = output_dim
+
+        self.layers.append(nn.Linear(input_dim, 2))
+
+        for idx, layer in enumerate(self.layers):
+            setattr(self, f'fc{idx}', layer)
+
+        for idx, dropout in enumerate(self.dropouts):
+            setattr(self, f'dropout{idx}', dropout)
+
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
 
@@ -17,9 +34,11 @@ class MLP(nn.Module):
         sent1s: [B, H]
         sent2s: [B, H]
         '''
-
         concated = torch.cat((sent1s, sent2s), dim=1)  # [B, H * 2]
-        x = self.relu(self.linear1(concated))
-        x = self.relu(self.linear2(x))
-        out = self.linear3(x)
-        return out
+
+        x = concated
+        for layer, dropout in zip(self.layers, self.dropouts):
+            x = self.relu(layer(x))
+            x = dropout(x)
+
+        return x
