@@ -4,16 +4,14 @@ import torch.nn as nn
 
 class MLP(nn.Module):
 
-    def __init__(self, trial):
+    def __init__(self, nlayers, dropout, output_dims):
         super().__init__()
         self.layers = []
         self.dropouts = []
-        nlayers = trial.suggest_int('nlayers', 3, 8)
-        dropout = trial.suggest_uniform('dropout', 0.2, 0.5)
+
         input_dim = 300 * 2
 
-        for i in range(nlayers):
-            output_dim = int(trial.suggest_categorical(f'n_units_l{i}', list(range(100, 1000, 100))))
+        for output_dim in output_dims:
             self.layers.append(nn.Linear(input_dim, output_dim))
             self.dropouts.append(nn.Dropout(dropout))
             input_dim = output_dim

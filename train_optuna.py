@@ -14,16 +14,14 @@ from data import get
 from models_optuna import MLP
 
 
-# def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
-#           ft_path: str, use_cuda: bool, epoch: int, lr: float, seed: int = 1111):
 def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
           ft_path: str, use_cuda: bool, epoch: int, seed: int = 1111):
 
-    # print('Loading dataset...')
+    print('Loading dataset...')
     train_dataloader = get(ddir, data_cache_dir, bsize, ft_path, split='train')
     valid_dataloader = get(ddir, data_cache_dir, bsize, ft_path, split='valid')
 
-    def objective(trial):
+    def objective(trial, save=False):
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         np.random.seed(seed)
@@ -35,12 +33,31 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
         # logf = open(savedir / 'log.txt', 'w')
         # logf.write(' '.join(sys.argv) + '\n')
 
-        # optuna settings
-        lr = trial.suggest_uniform('lr', 1e-5, 1e-1)
+        if trial:
+            if save:
+                # Best
+                lr = trial.params['lr']
+                nlayers = trial.params['nlayers']
+                dropout = trial.params['dropout']
+                output_dims = [trial.params[f'n_units_l{i}'] for i in range(nlayers)]
+            else:
+                # optuna settings
+                lr = trial.suggest_uniform('lr', 1e-5, 1e-1)
+                nlayers = trial.suggest_int('nlayers', 3, 8)
+                dropout = trial.suggest_uniform('dropout', 0.2, 0.5)
+                output_dims = [
+                        int(trial.suggest_categorical(f'n_units_l{i}', list(range(100, 1000, 100))))
+                        for i in range(nlayers)
+                        ]
+        else:
+            lr = 1e-5
+            output_dims = [200, 100, 200]
+            nlayers = len(output_dims)
+            dropout = 0.5
 
         # print('Setting up models...')
         device = torch.device('cuda' if use_cuda else 'cpu')
-        model = MLP(trial).to(device)
+        model = MLP(nlayers, dropout, output_dims).to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr)
         criteria = nn.CrossEntropyLoss()
 
@@ -111,19 +128,24 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
         # torch.save(model, savedir / 'model.pth')
         return best_acc
 
-    study = optuna.create_study(direction='maximize')
-    study.optimize(objective, n_trials=100)
+    use_optuna = True
+    if use_optuna:
+        study = optuna.create_study(direction='maximize')
+        study.optimize(objective, n_trials=100)
 
-    print(f'Number of finished trials: {len(study.trials)}')
-    print('Best trial:')
-    trial = study.best_trial
+        print(f'Number of finished trials: {len(study.trials)}')
+        print('Best trial:')
+        trial = study.best_trial
 
-    print(f'    Value: {trial.value}')
-    print(f'    Params: ')
-    for k, v in trial.params.items():
-        print(f'      {k}: {v}')
+        # Dump models with best trial
+        objective(trial, True)
 
-    # return objective
+        print(f'    Value: {trial.value}')
+        print(f'    Params: ')
+        for k, v in trial.params.items():
+            print(f'      {k}: {v}')
+    else:
+        objective(None)
 
 
 if __name__ == '__main__':
