@@ -46,7 +46,7 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
 
         best_acc = 0
         n_fail_in_a_raw = 0
-        limit_n_fail_in_a_raw = 5
+        limit_n_fail_in_a_raw = 10
 
         # print('Start training...')
         for i_epoch in range(1, epoch+1):

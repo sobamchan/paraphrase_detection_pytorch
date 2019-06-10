@@ -8,12 +8,12 @@ class MLP(nn.Module):
         super().__init__()
         self.layers = []
         self.dropouts = []
-        nlayers = trial.suggest_int('nlayers', 1, 5)
+        nlayers = trial.suggest_int('nlayers', 3, 8)
         dropout = trial.suggest_uniform('dropout', 0.2, 0.5)
         input_dim = 300 * 2
 
         for i in range(nlayers):
-            output_dim = int(trial.suggest_loguniform(f'n_units_l{i}', 100, 300))
+            output_dim = int(trial.suggest_categorical(f'n_units_l{i}', list(range(100, 1000, 100))))
             self.layers.append(nn.Linear(input_dim, output_dim))
             self.dropouts.append(nn.Dropout(dropout))
             input_dim = output_dim
