@@ -40,7 +40,7 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
     logger = get_logger(logf, False)
     logger(' '.join(sys.argv))
 
-    def objective(trial,  # with optuna
+    def objective(trial: optuna.Trial,  # with optuna
                   lr: int = None, output_dims: List = None, dropout: float = None  # without optuna
                   ):
         assert not (trial is not None and lr is not None)
@@ -64,6 +64,10 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
                 dropout = trial.params['dropout']
                 output_dims = [trial.params[f'n_units_l{i}'] for i in range(nlayers)]
             else:
+                # In study.
+                print(trial.number)
+                logger(f'Trial #{trial.number}')
+
                 # optuna settings
                 lr = trial.suggest_uniform('lr', lr_lower_bound, lr_upper_bound)
                 nlayers = trial.suggest_int('nlayers', nlayers_lower_bound, nlayers_upper_bound)
@@ -135,7 +139,7 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
             if n_fail_in_a_raw >= limit_n_fail_in_a_raw:
                 break
 
-            logger('\n')
+            logger(f"{'-' * 25}\n")
 
         return best_acc
 
