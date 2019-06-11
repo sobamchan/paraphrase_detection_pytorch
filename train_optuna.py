@@ -22,6 +22,10 @@ global model
 def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
           ft_path: str, use_cuda: bool, epoch: int, seed: int = 1111,
           use_optuna: bool = True, n_trials: int = 100,  # with optuna
+          lr_lower_bound: float = 1e-5, lr_upper_bound: float = 1e-1,
+          nlayers_lower_bound: int = 3, nlayers_upper_bound: int = 10,
+          dropout_lower_bound: int = 0.2, dropout_upper_bound: int = 0.5,
+          odim_start: int = 100, odim_end: int = 1000, odim_step: int = 100,
           lr: float = 1e-5, output_dims: List = [100, 200, 100], dropout: float = 0.5  # without optuna
           ):
 
@@ -36,14 +40,23 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
     logger = get_logger(logf, False)
     logger(' '.join(sys.argv))
 
-    def objective(trial, save=False):
+    def objective(trial,  # with optuna
+                  lr: int = None, output_dims: List = None, dropout: float = None  # without optuna
+                  ):
+        assert not (trial is not None and lr is not None)
+        assert not (trial is not None and output_dims is not None)
+        assert not (trial is not None and dropout is not None)
+        assert not (trial is None and lr is None)
+        assert not (trial is None and output_dims is None)
+        assert not (trial is None and dropout is None)
+
         global model
 
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         np.random.seed(seed)
 
-        if trial:
+        if trial is not None:
             if not isinstance(trial, optuna.Trial):
                 # Best
                 lr = trial.params['lr']
@@ -52,22 +65,17 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
                 output_dims = [trial.params[f'n_units_l{i}'] for i in range(nlayers)]
             else:
                 # optuna settings
-                lr = trial.suggest_uniform('lr', 1e-5, 1e-1)
-                nlayers = trial.suggest_int('nlayers', 3, 8)
-                dropout = trial.suggest_uniform('dropout', 0.2, 0.5)
+                lr = trial.suggest_uniform('lr', lr_lower_bound, lr_upper_bound)
+                nlayers = trial.suggest_int('nlayers', nlayers_lower_bound, nlayers_upper_bound)
+                dropout = trial.suggest_uniform('dropout', dropout_lower_bound, dropout_upper_bound)
                 output_dims = [
-                        int(trial.suggest_categorical(f'n_units_l{i}', list(range(100, 1000, 100))))
+                        int(trial.suggest_categorical(f'n_units_l{i}', list(range(odim_start, odim_end, odim_step))))
                         for i in range(nlayers)
                         ]
         else:
             nlayers = len(output_dims)
-        # else:
-        #     lr = 1e-5
-        #     output_dims = [200, 100, 200]
-        #     nlayers = len(output_dims)
-        #     dropout = 0.5
 
-        # print('Setting up models...')
+        logger('Setting up models...')
         device = torch.device('cuda' if use_cuda else 'cpu')
         model = MLP(nlayers, dropout, output_dims).to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -132,6 +140,7 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
         return best_acc
 
     if use_optuna:
+        print('With optuna.')
         study = optuna.create_study(direction='maximize')
         study.optimize(objective, n_trials=n_trials)
 
@@ -148,7 +157,8 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
 
         logger(f'Final accuracy: {final_acc}', True)
     else:
-        objective(None)
+        print('Without optuna.')
+        objective(None, lr, output_dims, dropout)
 
     # Dump model
     global model
