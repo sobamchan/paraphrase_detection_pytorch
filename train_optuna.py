@@ -135,17 +135,18 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
 
         print(f'Number of finished trials: {len(study.trials)}')
         print('Best trial:')
-        trial = study.best_trial
 
         # Dump models with best trial
-        objective(trial, True)
+        final_acc = objective(study.best_trial, save=True)
 
-        print(f'    Value: {trial.value}')
+        print(f'    Value: {study.best_trial.value}')
         print(f'    Params: ')
-        for k, v in trial.params.items():
+        for k, v in study.best_trial.params.items():
             print(f'      {k}: {v}')
+
+        print(f'Final accuracy: {final_acc}')
     else:
-        objective(None)
+        objective(None, save=True)
 
 
 if __name__ == '__main__':
