@@ -65,7 +65,6 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
                 output_dims = [trial.params[f'n_units_l{i}'] for i in range(nlayers)]
             else:
                 # In study.
-                print(trial.number)
                 logger(f'Trial #{trial.number}')
 
                 # optuna settings
