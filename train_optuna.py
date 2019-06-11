@@ -1,6 +1,7 @@
-# import sys
-# from datetime import datetime
-# from pathlib import Path
+import sys
+from typing import List
+from datetime import datetime
+from pathlib import Path
 
 import fire
 import numpy as np
@@ -12,29 +13,38 @@ import torch.optim as optim
 
 from data import get
 from models_optuna import MLP
+from logger import get_logger
+
+
+global model
 
 
 def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
-          ft_path: str, use_cuda: bool, epoch: int, seed: int = 1111):
+          ft_path: str, use_cuda: bool, epoch: int, seed: int = 1111,
+          use_optuna: bool = True, n_trials: int = 100,  # with optuna
+          lr: float = 1e-5, output_dims: List = [100, 200, 100], dropout: float = 0.5  # without optuna
+          ):
 
     print('Loading dataset...')
     train_dataloader = get(ddir, data_cache_dir, bsize, ft_path, split='train')
     valid_dataloader = get(ddir, data_cache_dir, bsize, ft_path, split='valid')
 
+    savedir = Path(_savedir)
+    savedir = savedir / datetime.now().strftime('%Y%m%d_%H%M%S')
+    savedir.mkdir()
+    logf = open(savedir / 'log.txt', 'w')
+    logger = get_logger(logf, False)
+    logger(' '.join(sys.argv))
+
     def objective(trial, save=False):
+        global model
+
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         np.random.seed(seed)
 
-        # savedir = Path(_savedir)
-        # savedir = savedir / datetime.now().strftime('%Y%m%d_%H%M%S')
-        # savedir.mkdir()
-
-        # logf = open(savedir / 'log.txt', 'w')
-        # logf.write(' '.join(sys.argv) + '\n')
-
         if trial:
-            if save:
+            if not isinstance(trial, optuna.Trial):
                 # Best
                 lr = trial.params['lr']
                 nlayers = trial.params['nlayers']
@@ -50,10 +60,12 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
                         for i in range(nlayers)
                         ]
         else:
-            lr = 1e-5
-            output_dims = [200, 100, 200]
             nlayers = len(output_dims)
-            dropout = 0.5
+        # else:
+        #     lr = 1e-5
+        #     output_dims = [200, 100, 200]
+        #     nlayers = len(output_dims)
+        #     dropout = 0.5
 
         # print('Setting up models...')
         device = torch.device('cuda' if use_cuda else 'cpu')
@@ -99,54 +111,51 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
                     valid_losses.append(loss.item())
                     valid_accs.append(acc)
 
-            # print(f'Train loss: {np.mean(losses)}')
-            # logf.write(f'Train loss: {np.mean(losses)}\n')
+            logger(f'Train loss: {np.mean(losses)}')
 
-            # _loss = np.mean(valid_losses)
+            _loss = np.mean(valid_losses)
             _acc = np.mean(valid_accs)
-            # print(f'Valid loss: {_loss}')
-            # logf.write(f'Valid loss: {_loss}\n')
-            # print(f'Valid accuracy: {_acc}')
-            # logf.write(f'Valid accuracy: {_acc}\n')
+            logger(f'Valid loss: {_loss}')
+            logger(f'Valid accuracy: {_acc}')
 
             if _acc > best_acc:
                 best_acc = _acc
                 n_fail_in_a_raw = 0
-                # print('Best acc')
-                # print(f'Dumping the model to {savedir}...')
-                # torch.save(model, savedir / 'best.pth')
             else:
                 n_fail_in_a_raw += 1
 
             if n_fail_in_a_raw >= limit_n_fail_in_a_raw:
                 break
 
-            # print()
-            # logf.write('\n')
+            logger('\n')
 
-        # print(f'Dumping the model to {savedir}...')
-        # torch.save(model, savedir / 'model.pth')
         return best_acc
 
-    use_optuna = True
     if use_optuna:
         study = optuna.create_study(direction='maximize')
-        study.optimize(objective, n_trials=100)
+        study.optimize(objective, n_trials=n_trials)
 
-        print(f'Number of finished trials: {len(study.trials)}')
-        print('Best trial:')
+        logger(f'Number of finished trials: {len(study.trials)}', True)
+        logger('Best trial:', True)
 
         # Dump models with best trial
-        final_acc = objective(study.best_trial, save=True)
+        final_acc = objective(study.best_trial)
 
-        print(f'    Value: {study.best_trial.value}')
-        print(f'    Params: ')
+        logger(f'    Value: {study.best_trial.value}', True)
+        logger(f'    Params: ', True)
         for k, v in study.best_trial.params.items():
-            print(f'      {k}: {v}')
+            logger(f'      {k}: {v}', True)
 
-        print(f'Final accuracy: {final_acc}')
+        logger(f'Final accuracy: {final_acc}', True)
     else:
-        objective(None, save=True)
+        objective(None)
+
+    # Dump model
+    global model
+    logger(f'Dumping the model to {savedir}...', True)
+    torch.save(model, savedir / 'best.pth')
+
+    logf.close()
 
 
 if __name__ == '__main__':
