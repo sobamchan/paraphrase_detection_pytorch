@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from data import get
-from models_optuna import MLP
+from models import MLP
 from logger import get_logger
 
 
