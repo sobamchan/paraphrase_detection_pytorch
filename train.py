@@ -1,5 +1,5 @@
 import sys
-from typing import List, Dict
+from typing import List
 from datetime import datetime
 from pathlib import Path
 
@@ -28,7 +28,6 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
           odim_start: int = 100, odim_end: int = 1000, odim_step: int = 100,
           lr: float = 1e-5, output_dims: List = [100, 200, 100], dropout: float = 0.5  # without optuna
           ):
-    _exec_args: Dict = locals()
 
     print('Loading dataset...')
     train_dataloader = get(ddir, data_cache_dir, bsize, ft_path, split='train')
@@ -40,8 +39,6 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
     logf = open(savedir / 'log.txt', 'w')
     logger = get_logger(logf, False)
     logger(' '.join(sys.argv))
-    logger('Arguments:', True)
-    [logger(f'  {k}: {v}', True) for k, v in _exec_args.items()]
 
     def objective(trial: optuna.Trial,  # with optuna
                   lr: int = None, output_dims: List = None, dropout: float = None  # without optuna
@@ -147,8 +144,13 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
 
     if use_optuna:
         logger('With optuna.', True)
+        logger("Let's go.", True)
         study = optuna.create_study(direction='maximize')
-        study.optimize(objective, n_trials=n_trials)
+
+        try:
+            study.optimize(objective, n_trials=n_trials)
+        except KeyboardInterrupt:
+            logger('Keyboard Interrupted', True)
 
         logger(f'Number of finished trials: {len(study.trials)}', True)
         logger('Best trial:', True)
