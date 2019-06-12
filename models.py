@@ -4,11 +4,26 @@ import torch.nn as nn
 
 class MLP(nn.Module):
 
-    def __init__(self):
+    def __init__(self, nlayers, dropout, output_dims):
         super().__init__()
-        self.linear1 = nn.Linear(300 * 2, 200)
-        self.linear2 = nn.Linear(200, 300)
-        self.linear3 = nn.Linear(300, 2)
+        self.layers = []
+        self.dropouts = []
+
+        input_dim = 300 * 2
+
+        for output_dim in output_dims:
+            self.layers.append(nn.Linear(input_dim, output_dim))
+            self.dropouts.append(nn.Dropout(dropout))
+            input_dim = output_dim
+
+        self.layers.append(nn.Linear(input_dim, 2))
+
+        for idx, layer in enumerate(self.layers):
+            setattr(self, f'fc{idx}', layer)
+
+        for idx, dropout in enumerate(self.dropouts):
+            setattr(self, f'dropout{idx}', dropout)
+
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
 
@@ -17,9 +32,11 @@ class MLP(nn.Module):
         sent1s: [B, H]
         sent2s: [B, H]
         '''
-
         concated = torch.cat((sent1s, sent2s), dim=1)  # [B, H * 2]
-        x = self.relu(self.linear1(concated))
-        x = self.relu(self.linear2(x))
-        out = self.linear3(x)
-        return out
+
+        x = concated
+        for layer, dropout in zip(self.layers, self.dropouts):
+            x = self.relu(layer(x))
+            x = dropout(x)
+
+        return x
