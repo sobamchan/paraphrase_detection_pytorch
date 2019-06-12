@@ -1,5 +1,5 @@
 import sys
-from typing import List
+from typing import List, Dict
 from datetime import datetime
 from pathlib import Path
 
@@ -28,6 +28,7 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
           odim_start: int = 100, odim_end: int = 1000, odim_step: int = 100,
           lr: float = 1e-5, output_dims: List = [100, 200, 100], dropout: float = 0.5  # without optuna
           ):
+    _exec_args: Dict = locals()
 
     print('Loading dataset...')
     train_dataloader = get(ddir, data_cache_dir, bsize, ft_path, split='train')
@@ -39,6 +40,8 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
     logf = open(savedir / 'log.txt', 'w')
     logger = get_logger(logf, False)
     logger(' '.join(sys.argv))
+    logger('Arguments:', True)
+    [logger(f'  {k}: {v}', True) for k, v in _exec_args.items()]
 
     def objective(trial: optuna.Trial,  # with optuna
                   lr: int = None, output_dims: List = None, dropout: float = None  # without optuna
@@ -65,7 +68,7 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
                 output_dims = [trial.params[f'n_units_l{i}'] for i in range(nlayers)]
             else:
                 # In study.
-                logger(f'Trial #{trial.number}')
+                logger(f'{"-" * 10} Trial #{trial.number} {"-" * 10}')
 
                 # optuna settings
                 lr = trial.suggest_uniform('lr', lr_lower_bound, lr_upper_bound)
@@ -143,7 +146,7 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
         return best_acc
 
     if use_optuna:
-        print('With optuna.')
+        logger('With optuna.', True)
         study = optuna.create_study(direction='maximize')
         study.optimize(objective, n_trials=n_trials)
 
@@ -160,7 +163,7 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
 
         logger(f'Final accuracy: {final_acc}', True)
     else:
-        print('Without optuna.')
+        logger('Without optuna.', True)
         objective(None, lr, output_dims, dropout)
 
     # Dump model
