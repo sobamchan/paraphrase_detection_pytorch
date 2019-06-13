@@ -6,12 +6,14 @@ from pathlib import Path
 import fire
 import numpy as np
 import optuna
+import lineflow.cross_validation as lfcv
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import DataLoader
 
-from data import get
+from data import get, get_collate_fn
 from models import MLP
 from logger import get_logger
 
@@ -29,16 +31,34 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
           lr: float = 1e-5, output_dims: List = [100, 200, 100], dropout: float = 0.5  # without optuna
           ):
 
-    print('Loading dataset...')
-    train_dataloader = get(ddir, data_cache_dir, bsize, ft_path, split='train')
-    valid_dataloader = get(ddir, data_cache_dir, bsize, ft_path, split='valid')
-
     savedir = Path(_savedir)
+    data_cache_dir = Path(data_cache_dir)
     savedir = savedir / datetime.now().strftime('%Y%m%d_%H%M%S')
     savedir.mkdir()
     logf = open(savedir / 'log.txt', 'w')
     logger = get_logger(logf, False)
     logger(' '.join(sys.argv))
+
+    logger('Loading dataset...', True)
+    dataset = get(ddir, ft_path, split='train')
+    train_size = int(len(dataset) * 0.8)
+    train_dataset, valid_dataset = lfcv.split_dataset_random(dataset, train_size, 42)
+    logger(f'Train dataset size: {len(train_dataset)}')
+    logger(f'Valid dataset size: {len(valid_dataset)}')
+    train_dataloader = DataLoader(
+            train_dataset.save(data_cache_dir / 'swem.train.cache'),
+            batch_size=bsize,
+            shuffle=True,
+            num_workers=4,
+            collate_fn=get_collate_fn()
+            )
+    valid_dataloader = DataLoader(
+            valid_dataset.save(data_cache_dir / 'swem.valid.cache'),
+            batch_size=bsize,
+            shuffle=False,
+            num_workers=4,
+            collate_fn=get_collate_fn()
+            )
 
     def objective(trial: optuna.Trial,  # with optuna
                   lr: int = None, output_dims: List = None, dropout: float = None  # without optuna

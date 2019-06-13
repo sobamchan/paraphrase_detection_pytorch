@@ -60,10 +60,9 @@ def get_collate_fn():
     return _f
 
 
-def get(ddir: str, savedir: str, bsize: int, ft_path: str, split: str):
+def get(ddir: str, ft_path: str, split: str):
     random.seed(1111)
     ddir = Path(ddir)
-    savedir = Path(savedir)
 
     ft_model = fastText.load_model(ft_path)
     swem = SWEM(ft_model)
@@ -73,15 +72,16 @@ def get(ddir: str, savedir: str, bsize: int, ft_path: str, split: str):
     sent2 = lf.TextDataset(str(ddir / (f'sent2.{split}.txt'))).map(sent_preprocess(swem))
 
     ds = lf.zip(quality, sent1, sent2)
+    return ds
 
-    dataloader = DataLoader(
-            ds.save(savedir / f'swem.{split}.cache'),
-            batch_size=bsize,
-            shuffle=True,
-            num_workers=4,
-            collate_fn=get_collate_fn()
-            )
-    return dataloader
+    # dataloader = DataLoader(
+    #         ds.save(savedir / f'swem.{split}.cache'),
+    #         batch_size=bsize,
+    #         shuffle=True,
+    #         num_workers=4,
+    #         collate_fn=get_collate_fn()
+    #         )
+    # return dataloader
 
 
 def test_get(ddir: str, savedir: str, bsize: int, ft_path: str):
