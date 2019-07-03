@@ -43,8 +43,8 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
     dataset = get(ddir, ft_path, split='train')
     train_size = int(len(dataset) * 0.8)
     train_dataset, valid_dataset = lfcv.split_dataset_random(dataset, train_size, 42)
-    logger(f'Train dataset size: {len(train_dataset)}')
-    logger(f'Valid dataset size: {len(valid_dataset)}')
+    logger(f'Train dataset size: {len(train_dataset)}', True)
+    logger(f'Valid dataset size: {len(valid_dataset)}', True)
     train_dataloader = DataLoader(
             train_dataset.save(data_cache_dir / 'swem.train.cache'),
             batch_size=bsize,
