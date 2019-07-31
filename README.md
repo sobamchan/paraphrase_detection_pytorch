@@ -8,7 +8,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py train --ddir /path/to/data/ --data-cache-
 
 ## evaluation
 ```bash
-CUDA_VISIBLE_DEVICES=0 python eval.py eval --ddir /path/to/data --model_path ./test/model.pth --use_cuda
+CUDA_VISIBLE_DEVICES=0 python eval.py eval --ddir /path/to/data --data-cache-dir /dir/to/cache --model_path ./test/model.pth --ft-path /path/to/fasttext.bin --use_cuda
 ```
 
 
