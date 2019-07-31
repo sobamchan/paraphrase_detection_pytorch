@@ -16,7 +16,7 @@ class MLP(nn.Module):
             self.dropouts.append(nn.Dropout(dropout))
             input_dim = output_dim
 
-        self.layers.append(nn.Linear(input_dim, 2))
+        self.final_fc = nn.Linear(input_dim, 2)
 
         for idx, layer in enumerate(self.layers):
             setattr(self, f'fc{idx}', layer)
@@ -39,4 +39,5 @@ class MLP(nn.Module):
             x = self.relu(layer(x))
             x = dropout(x)
 
+        x = self.final_fc(x)
         return x
