@@ -2,6 +2,7 @@ import sys
 from typing import List
 from datetime import datetime
 from pathlib import Path
+from collections import Counter
 
 import fire
 import numpy as np
@@ -60,6 +61,16 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
             collate_fn=get_collate_fn()
             )
 
+    # Prepare weights for loss function.
+    logger("Preparing weight for loss function.", True)
+    labels = [sample[0] for sample in train_dataset]
+    label_counter = Counter(labels)  # {1: number of class 1 samples, 0: number of class 0 samples,}
+    loss_weight = torch.zeros(len(label_counter))
+    loss_weight[0] = 1 / label_counter[0]
+    loss_weight[1] = 1 / label_counter[1]
+    logger(f"Number of samples for each classes: {label_counter}", True)
+    logger(f"Weight: loss_weight: {loss_weight}", True)
+
     def objective(trial: optuna.Trial,  # with optuna
                   lr: int = None, output_dims: List = None, dropout: float = None  # without optuna
                   ):
@@ -102,7 +113,7 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
         device = torch.device('cuda' if use_cuda else 'cpu')
         model = MLP(nlayers, dropout, output_dims).to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr)
-        criteria = nn.CrossEntropyLoss()
+        criteria = nn.CrossEntropyLoss(weight=loss_weight.to(device))
 
         best_acc = 0
         n_fail_in_a_raw = 0
