@@ -92,16 +92,20 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
                 # Best
                 lr = trial.params['lr']
                 nlayers = trial.params['nlayers']
-                dropout = trial.params['dropout']
+                dropouts = trial.params['dropout']
                 output_dims = [trial.params[f'n_units_l{i}'] for i in range(nlayers)]
             else:
                 # In study.
                 logger(f'{"-" * 10} Trial #{trial.number} {"-" * 10}')
 
                 # optuna settings
-                lr = trial.suggest_uniform('lr', lr_lower_bound, lr_upper_bound)
+                # lr = trial.suggest_uniform('lr', lr_lower_bound, lr_upper_bound)
+                lr = trial.suggest_categorical('lr', [1e-3, 3e-4, 2e-4, 1e-5])
                 nlayers = trial.suggest_int('nlayers', nlayers_lower_bound, nlayers_upper_bound)
-                dropout = trial.suggest_uniform('dropout', dropout_lower_bound, dropout_upper_bound)
+                dropouts = [
+                        trial.suggest_categorical(f'dropout_l{i}', [0.2, 0.5, 0.7])
+                        for i in range(2)
+                        ]
                 output_dims = [
                         int(trial.suggest_categorical(f'n_units_l{i}', list(range(odim_start, odim_end, odim_step))))
                         for i in range(nlayers)
@@ -111,13 +115,13 @@ def train(ddir: str, data_cache_dir: str, _savedir: str, bsize: int,
 
         logger('Setting up models...')
         device = torch.device('cuda' if use_cuda else 'cpu')
-        model = MLP(nlayers, dropout, output_dims).to(device)
+        model = MLP(nlayers, dropouts, output_dims).to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr)
         criteria = nn.CrossEntropyLoss(weight=loss_weight.to(device))
 
         best_acc = 0
         n_fail_in_a_raw = 0
-        limit_n_fail_in_a_raw = 10
+        limit_n_fail_in_a_raw = 5
 
         # print('Start training...')
         for i_epoch in range(1, epoch+1):

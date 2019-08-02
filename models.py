@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class MLP(nn.Module):
 
-    def __init__(self, nlayers, dropout, output_dims):
+    def __init__(self, nlayers, dropouts, output_dims):
         super().__init__()
         self.layers = []
         self.dropouts = []
@@ -13,7 +13,8 @@ class MLP(nn.Module):
 
         for output_dim in output_dims:
             self.layers.append(nn.Linear(input_dim, output_dim))
-            self.dropouts.append(nn.Dropout(dropout))
+            self.dropouts.append(nn.Dropout(dropouts[0]))
+            self.dropouts.append(nn.Dropout(dropouts[1]))
             input_dim = output_dim
 
         self.final_fc = nn.Linear(input_dim, 2)
@@ -35,9 +36,12 @@ class MLP(nn.Module):
         concated = torch.cat((sent1s, sent2s), dim=1)  # [B, H * 2]
 
         x = concated
-        for layer, dropout in zip(self.layers, self.dropouts):
+        x = self.dropouts[0](x)
+
+        for layer in self.layers:
             x = self.relu(layer(x))
-            x = dropout(x)
 
         x = self.final_fc(x)
+        x = self.dropouts[1](x)
+
         return x
